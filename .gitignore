@@ -1,0 +1,42 @@
+.web
+*.py[cod]
+*.db
+assets/external/
+__pycache__/
+
+# Entornos virtuales
+**/.venv/
+**/.env/
+**/.venv/
+/backend/.venv/
+/frontend/.venv/
+/frontend/.web/
+
+# Docker
+**/postgres_data/
+
+# Archivos de entorno
+**/.env
+**/*.env
+
+# Archivos de IDE
+.vscode/
+.idea/
+
+# Dependencias y builds
+**/__pycache__/
+**/*.pyc
+**/node_modules/
+**/web/
+**/dist/
+**/assets/
+**/.web/
+
+# Logs y archivos temporales
+*.log
+*.sqlite3
+*.pid
+*.DS_Store
+
+# Docker compose override
+docker-compose.override.yml
