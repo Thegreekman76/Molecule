@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: molecule_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: molecule_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - molecule_net
+
+  pgadmin:
+    image: dpage/pgadmin4:7.8
+    container_name: molecule_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@molecule.com
+      PGADMIN_DEFAULT_PASSWORD: secret
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - molecule_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: molecule_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://admin:secret@postgres:5432/molecule_db
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+    networks:
+      - molecule_net
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: molecule_frontend
+    ports:
+      - "3000:3000"  # Puerto frontend
+    volumes:
+      - ./frontend:/app  # Montar código para desarrollo
+      - ./frontend/web:/app/web  # Para persistir assets generados
+    environment:
+      - REFLEX_HOST=0.0.0.0
+    networks:
+      - molecule_net
+
+volumes:
+  postgres_data:
+
+networks:
+  molecule_net:
+    driver: bridge
