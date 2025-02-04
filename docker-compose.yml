@@ -1,17 +1,22 @@
 services:
   postgres:
     image: postgres:16
+    command: postgres -c listen_addresses='*' -c log_connections=on
     container_name: molecule_db
+    restart: always
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: molecule_db
+      POSTGRES_HOST_AUTH_METHOD: trust  # ¡Solo para pruebas!
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5434:5432"
     networks:
       - molecule_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   pgadmin:
     image: dpage/pgadmin4:7.8
@@ -20,7 +25,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@molecule.com
       PGADMIN_DEFAULT_PASSWORD: secret
     ports:
-      - "5050:80"
+      - "5051:80"
     depends_on:
       - postgres
     networks:

@@ -26,7 +26,7 @@ reflex run --frontend-port 3000
 
 | Descripción                          | Comando                                                                                                                                       |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Detener Docker                       | `docker-compose down`                                                                                                                         |
+| Detener Docker                       | `docker-compose down -v`                                                                                                                      |
 | Ver logs de PostgreSQL               | `docker logs molecule_db`                                                                                                                     |
 | Reiniciar el servicio                | `docker-compose restart backend`                                                                                                              |
 | Verificar el estado de los servicios | `docker-compose ps`                                                                                                                           |
