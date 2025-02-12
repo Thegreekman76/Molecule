@@ -1,30 +1,45 @@
-from fastapi import Depends, FastAPI, HTTPException
+# main.py
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from core.database.database import get_db
+from core.middleware.auth import AuthMiddleware
+from api import api_router
 import os
 
-from sqlalchemy import text
-from core.database.database import get_db
-from sqlalchemy.orm import Session
+app = FastAPI(
+    title="Molecule Framework",
+    description="Framework for database-driven applications",
+    version="0.1.0"
+)
 
-app = FastAPI()
+# Configurar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configura esto apropiadamente en producción
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Agregar middleware de autenticación
+auth_middleware = AuthMiddleware()
+
+@app.middleware("http")
+async def authentication_middleware(request: Request, call_next):
+    await auth_middleware(request)
+    response = await call_next(request)
+    return response
+
+# Incluir todas las rutas de la API
+app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
     return {"message": "Molecule Framework API is running"}
 
 @app.get("/health")
-async def health_check(db: Session = Depends(get_db)):
-    try:
-        # Ejecutar consulta simple de prueba
-        result = db.execute(text("SELECT 1")).fetchone()
-        return {
-            "status": "ok",
-            "database": "connected" if result[0] == 1 else "error"
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database connection failed!!: {str(e)}"
-        )
+async def health_check():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
