@@ -7,9 +7,8 @@ from api import api_router
 from config.settings import settings
 import logging
 
-# Configurar logger
+# Obtener logger para este módulo
 logger = logging.getLogger(__name__)
-
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -20,10 +19,10 @@ app = FastAPI(
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
 # Agregar middleware de autenticación
@@ -38,22 +37,32 @@ async def authentication_middleware(request: Request, call_next):
 # Incluir todas las rutas de la API
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting up Molecule Framework")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info(f"Environment: Development")
+    logger.info(f"API Version: {settings.VERSION}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down Molecule Framework")
+
 @app.get("/")
 async def root():
+    logger.info("Root endpoint called")
     return {"message": f"{settings.PROJECT_NAME} API is running"}
 
 @app.get("/health")
 async def health_check():
-    logger.debug("Debug message from health check")
     logger.info("Health check endpoint called")
-    logger.warning("This is a warning message")
-    logger.error("This is an error message")
     return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
+    logger.info("Starting server...")
     uvicorn.run(
         app, 
-        host=settings.HOST,
+        host=settings.HOST, 
         port=settings.PORT
     )
