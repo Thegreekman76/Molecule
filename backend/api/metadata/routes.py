@@ -246,3 +246,70 @@ def delete_field(field_id: int, db: Session = Depends(get_db)):
             status_code=500,
             detail=f"Error deleting field: {str(e)}"
         )
+        
+@router.post("/relationships/", response_model=RelationshipMetadataInDB)
+def create_relationship(
+    relationship: RelationshipMetadataCreate,
+    db: Session = Depends(get_db)
+):
+    """Crear nueva relación entre tablas"""
+    # Verificar que existan las tablas
+    source_table = table_metadata.get(db, relationship.source_table_id)
+    if not source_table:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Source table with id {relationship.source_table_id} not found"
+        )
+    
+    target_table = table_metadata.get(db, relationship.target_table_id)
+    if not target_table:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Target table with id {relationship.target_table_id} not found"
+        )
+    
+    return relationship_metadata.create(db, obj_in=relationship)
+
+@router.get("/relationships/", response_model=List[RelationshipMetadataInDB])
+def read_relationships(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Obtener lista de relaciones"""
+    return relationship_metadata.get_multi(db, skip=skip, limit=limit)
+
+@router.get("/relationships/{relationship_id}", response_model=RelationshipMetadataInDB)
+def read_relationship(relationship_id: int, db: Session = Depends(get_db)):
+    """Obtener una relación específica"""
+    db_relationship = relationship_metadata.get(db, relationship_id)
+    if db_relationship is None:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    return db_relationship
+
+@router.put("/relationships/{relationship_id}", response_model=RelationshipMetadataInDB)
+def update_relationship(
+    relationship_id: int,
+    relationship: RelationshipMetadataUpdate,
+    db: Session = Depends(get_db)
+):
+    """Actualizar una relación"""
+    db_relationship = relationship_metadata.get(db, relationship_id)
+    if db_relationship is None:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    return relationship_metadata.update(db, db_obj=db_relationship, obj_in=relationship)
+
+@router.delete("/relationships/{relationship_id}", response_model=RelationshipMetadataInDB)
+def delete_relationship(relationship_id: int, db: Session = Depends(get_db)):
+    """Eliminar una relación"""
+    return relationship_metadata.delete(db, id=relationship_id)
+
+@router.get("/tables/{table_id}/relationships/", response_model=List[RelationshipMetadataInDB])
+def read_table_relationships(
+    table_id: int,
+    db: Session = Depends(get_db)
+):
+    """Obtener todas las relaciones de una tabla (como fuente o destino)"""
+    source_relations = relationship_metadata.get_by_source_table(db, table_id)
+    target_relations = relationship_metadata.get_by_target_table(db, table_id)
+    return source_relations + target_relations

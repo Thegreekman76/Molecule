@@ -35,38 +35,52 @@ def generate_models(schema: str = 'public'):
         
         # Obtener tablas
         tables = generator.get_tables(schema)
-        logging.info(f"Found {len(tables)} tables to process")
+        print(f"\n🔍 Tablas encontradas en la base de datos:")
+        for table in tables:
+            print(f"  - {table}")
+        
+        if not tables:
+            print("\n❌ No se encontraron tablas en la base de datos")
+            return
+            
+        print(f"\n📝 Generando modelos para {len(tables)} tablas...")
         
         for table_name in tables:
             try:
                 # Obtener información de la tabla
                 table_info = generator.get_table_info(table_name, schema)
                 
+                # Mostrar información de columnas
+                print(f"\n📊 Tabla: {table_name}")
+                print("  Columnas:")
+                for col in table_info.columns:
+                    print(f"    - {col.name} ({col.type})")
+                
                 # Generar y guardar modelo SQLAlchemy
                 model_code = generator.generate_sqlalchemy_model(table_info)
                 model_file = f'models/generated/{table_name}.py'
                 with open(model_file, 'w') as f:
                     f.write(model_code)
-                logging.info(f"Generated SQLAlchemy model: {model_file}")
+                print(f"  ✅ Modelo SQLAlchemy generado: {model_file}")
                 
                 # Generar y guardar schema Pydantic
                 schema_code = generator.generate_pydantic_schema(table_info)
                 schema_file = f'schemas/generated/{table_name}.py'
                 with open(schema_file, 'w') as f:
                     f.write(schema_code)
-                logging.info(f"Generated Pydantic schema: {schema_file}")
+                print(f"  ✅ Schema Pydantic generado: {schema_file}")
                 
             except Exception as e:
-                logging.error(f"Error processing table {table_name}: {str(e)}")
+                print(f"  ❌ Error procesando tabla {table_name}: {str(e)}")
                 continue
         
         # Generar archivo __init__.py con imports
         generate_init_files(tables)
         
-        logging.info("Model generation completed successfully")
+        print("\n✨ Generación de modelos completada exitosamente")
         
     except Exception as e:
-        logging.error(f"Error generating models: {str(e)}")
+        print(f"\n❌ Error generando modelos: {str(e)}")
         raise
 
 def generate_init_files(tables: list[str]):
