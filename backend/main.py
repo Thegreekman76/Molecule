@@ -4,18 +4,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.database.database import get_db
 from core.middleware.auth import AuthMiddleware
 from api import api_router
-import os
+from config.settings import settings
 
 app = FastAPI(
-    title="Molecule Framework",
+    title=settings.PROJECT_NAME,
     description="Framework for database-driven applications",
-    version="0.1.0"
+    version=settings.VERSION
 )
 
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configura esto apropiadamente en producción
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,11 +31,14 @@ async def authentication_middleware(request: Request, call_next):
     return response
 
 # Incluir todas las rutas de la API
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():
-    return {"message": "Molecule Framework API is running"}
+    return {
+        "message": f"{settings.PROJECT_NAME} API is running",
+        "version": settings.VERSION
+    }
 
 @app.get("/health")
 async def health_check():
@@ -45,6 +48,6 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         app, 
-        host=os.getenv("HOST", "0.0.0.0"), 
-        port=int(os.getenv("PORT", 8000))
+        host=settings.HOST,
+        port=settings.PORT
     )
