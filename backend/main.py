@@ -5,6 +5,11 @@ from core.database.database import get_db
 from core.middleware.auth import AuthMiddleware
 from api import api_router
 from config.settings import settings
+import logging
+
+# Configurar logger
+logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -39,6 +44,10 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    logger.debug("Debug message from health check")
+    logger.info("Health check endpoint called")
+    logger.warning("This is a warning message")
+    logger.error("This is an error message")
     return {"status": "ok"}
 
 if __name__ == "__main__":
