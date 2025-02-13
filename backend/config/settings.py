@@ -20,7 +20,6 @@ class Settings(BaseModel):
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30
-    DB_ECHO: bool = False  # SQL Echo for debugging
     
     # Security
     SECRET_KEY: str = "your-secret-key-here"
@@ -30,6 +29,9 @@ class Settings(BaseModel):
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_METHODS: List[str] = ["*"]
+    CORS_ALLOW_HEADERS: List[str] = ["*"]
     
     # Cache Config
     CACHE_ENABLED: bool = True
@@ -39,7 +41,8 @@ class Settings(BaseModel):
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    USE_FILE_LOGGING: bool = False
+    LOG_FILE: str = "logs/molecule.log"
+    USE_FILE_LOGGING: bool = True
 
     @field_validator("DATABASE_URL")
     def validate_database_url(cls, v: str) -> str:
@@ -56,23 +59,29 @@ class Settings(BaseModel):
         return v
 
     @field_validator("BACKEND_CORS_ORIGINS")
-    def validate_cors_origins(cls, v: List[str]) -> List[str]:
+    def assemble_cors_origins(cls, v: List[str] | str) -> List[str] | str:
         """Validar y procesar orígenes CORS"""
-        if v == ["*"]:
+        if isinstance(v, str):
+            if v == "*":
+                return ["*"]
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, list):
             return v
-        return [origin.strip() for origin in v if origin.strip()]
+        raise ValueError("BACKEND_CORS_ORIGINS debe ser una lista o string")
 
     def get_db_pool_settings(self) -> Dict[str, Any]:
         """Obtener configuración del pool de base de datos"""
         return {
             "pool_size": self.DB_POOL_SIZE,
             "max_overflow": self.DB_MAX_OVERFLOW,
-            "pool_timeout": self.DB_POOL_TIMEOUT,
-            "echo": self.DB_ECHO
+            "pool_timeout": self.DB_POOL_TIMEOUT
         }
 
     def get_logging_config(self) -> Dict[str, Any]:
         """Obtener configuración de logging"""
+        # Asegurar que la carpeta logs existe
+        os.makedirs("logs", exist_ok=True)
+        
         config = {
             "version": 1,
             "disable_existing_loggers": False,
@@ -86,11 +95,25 @@ class Settings(BaseModel):
                     "class": "logging.StreamHandler",
                     "formatter": "default",
                     "level": self.LOG_LEVEL
+                },
+                "file": {
+                    "class": "logging.FileHandler",
+                    "filename": self.LOG_FILE,
+                    "formatter": "default",
+                    "level": self.LOG_LEVEL
                 }
             },
-            "root": {
-                "level": self.LOG_LEVEL,
-                "handlers": ["console"]
+            "loggers": {
+                "": {  # Root logger
+                    "handlers": ["console", "file"],
+                    "level": self.LOG_LEVEL,
+                    "propagate": True
+                },
+                "core.database": {  # Logger específico para la base de datos
+                    "handlers": ["console", "file"],
+                    "level": self.LOG_LEVEL,
+                    "propagate": False
+                }
             }
         }
 

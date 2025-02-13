@@ -3,48 +3,42 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.engine import Engine
-from config.settings import get_settings, settings
+from config.settings import settings
 from typing import Generator
 import logging
 import logging.config
 import time
+import os
 
-# Obtener settings
-settings = get_settings()
+# Asegurar que la carpeta logs existe
+os.makedirs("logs", exist_ok=True)
 
-# Configurar logging básico primero
-logging.basicConfig(level=settings.LOG_LEVEL)
+# Configurar logging
 logger = logging.getLogger(__name__)
 
-# Configurar logging avanzado si está disponible
-try:
-    logging.config.dictConfig(settings.get_logging_config())
-except (ValueError, OSError) as e:
-    logger.warning(f"No se pudo configurar el logging avanzado: {str(e)}")
-    logger.warning("Usando configuración de logging básica")
-
-# Crear el engine con configuración mejorada
+logger.info("Initializing database engine...")
 engine = create_engine(
     settings.DATABASE_URL,
     poolclass=QueuePool,
-    echo=settings.DEBUG,  # Esto activará el logging SQL
+    echo=settings.DEBUG,
     **settings.get_db_pool_settings()
 )
+logger.info("Database engine initialized successfully")
 
+
+# Event listeners para logging detallado de SQL
 @event.listens_for(Engine, "before_cursor_execute")
 def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
     conn.info.setdefault('query_start_time', time.time())
     if settings.DEBUG:
-        logger.debug("SQL Query: %s", statement)
+        logger.debug("SQL Query Starting: %s", statement)
         logger.debug("Parameters: %r", parameters)
 
 @event.listens_for(Engine, "after_cursor_execute")
 def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
     total = time.time() - conn.info['query_start_time']
     if settings.DEBUG:
-        logger.debug("Query Complete!")
-        logger.debug("Total Time: %f", total)
-
+        logger.debug("SQL Query Completed in %.3f seconds", total)
 
 # Crear sessionmaker
 SessionLocal = sessionmaker(
@@ -53,6 +47,7 @@ SessionLocal = sessionmaker(
     autoflush=False,
     expire_on_commit=False
 )
+logger.info("Database session factory created")
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency para obtener sesión de DB"""
@@ -63,7 +58,7 @@ def get_db() -> Generator[Session, None, None]:
     try:
         yield db
     except Exception as e:
-        logger.error(f"Database error: {str(e)}")
+        logger.error(f"Database error occurred: {str(e)}", exc_info=True)
         db.rollback()
         raise
     finally:
@@ -74,27 +69,13 @@ def get_db() -> Generator[Session, None, None]:
 def check_db_connection() -> bool:
     """Verificar conexión a la base de datos"""
     try:
+        logger.info("Checking database connection...")
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         logger.info("Database connection successful")
         return True
     except Exception as e:
-        logger.error(f"Database connection failed: {str(e)}")
+        logger.error(f"Database connection failed: {str(e)}", exc_info=True)
         return False
     finally:
         db.close()
-
-def init_db() -> None:
-    """Inicializar la base de datos"""
-    try:
-        # Importar todos los modelos aquí
-        from core.security.auth import UserModel
-        from core.security.roles import Role, Permission
-        from core.metadata.models import TableMetadata, FieldMetadata, RelationshipMetadata
-        
-        # Crear las tablas
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Error initializing database: {str(e)}")
-        raise
