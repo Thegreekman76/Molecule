@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.engine import Engine
-from config.settings import get_settings
+from config.settings import get_settings, settings
 from typing import Generator
 import logging
 import logging.config
@@ -27,24 +27,24 @@ except (ValueError, OSError) as e:
 engine = create_engine(
     settings.DATABASE_URL,
     poolclass=QueuePool,
+    echo=settings.DEBUG,  # Esto activará el logging SQL
     **settings.get_db_pool_settings()
 )
 
-# Event listeners mejorados para debugging
 @event.listens_for(Engine, "before_cursor_execute")
 def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    conn.info.setdefault('query_start_time', time.time())
     if settings.DEBUG:
-        # Almacenar el tiempo de inicio en el contexto de conexión
-        conn.info.setdefault('query_start_time', []).append(time.time())
-        logger.debug("SQL: %s", statement)
-        logger.debug("Parameters: %s", parameters)
+        logger.debug("SQL Query: %s", statement)
+        logger.debug("Parameters: %r", parameters)
 
 @event.listens_for(Engine, "after_cursor_execute")
 def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    if settings.DEBUG and conn.info.get('query_start_time'):
-        # Calcular el tiempo total de ejecución
-        total = time.time() - conn.info['query_start_time'].pop(-1)
-        logger.debug("Query execution time: %.3f seconds", total)
+    total = time.time() - conn.info['query_start_time']
+    if settings.DEBUG:
+        logger.debug("Query Complete!")
+        logger.debug("Total Time: %f", total)
+
 
 # Crear sessionmaker
 SessionLocal = sessionmaker(
@@ -56,6 +56,9 @@ SessionLocal = sessionmaker(
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency para obtener sesión de DB"""
+    if settings.DEBUG:
+        logger.debug("Opening new database connection")
+    
     db = SessionLocal()
     try:
         yield db
@@ -64,18 +67,22 @@ def get_db() -> Generator[Session, None, None]:
         db.rollback()
         raise
     finally:
+        if settings.DEBUG:
+            logger.debug("Closing database connection")
         db.close()
 
 def check_db_connection() -> bool:
     """Verificar conexión a la base de datos"""
     try:
-        with SessionLocal() as db:
-            db.execute("SELECT 1")
-            logger.info("Database connection successful")
-            return True
+        db = SessionLocal()
+        db.execute("SELECT 1")
+        logger.info("Database connection successful")
+        return True
     except Exception as e:
         logger.error(f"Database connection failed: {str(e)}")
         return False
+    finally:
+        db.close()
 
 def init_db() -> None:
     """Inicializar la base de datos"""
