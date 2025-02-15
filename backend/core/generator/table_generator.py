@@ -4,6 +4,8 @@ from core.database.database import engine
 from core.metadata.models import TableMetadata, FieldMetadata, RelationshipMetadata
 from sqlalchemy.schema import CreateTable
 import logging
+from collections import defaultdict
+from typing import Dict, List, Set
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,48 @@ class TableGenerator:
             'timestamp': DateTime,
             'boolean': Boolean,
         }
+
+    def _build_dependency_graph(self, db) -> Dict[str, Set[str]]:
+        """Construye un grafo de dependencias entre tablas"""
+        dependencies = defaultdict(set)
+        relationships = db.query(RelationshipMetadata).all()
+        
+        for rel in relationships:
+            source_table = db.query(TableMetadata).get(rel.source_table_id)
+            target_table = db.query(TableMetadata).get(rel.target_table_id)
+            
+            if source_table and target_table:
+                # La tabla source depende de target (necesita que target exista primero)
+                dependencies[source_table.name].add(target_table.name)
+                
+        return dependencies
+
+    def _get_creation_order(self, dependencies: Dict[str, Set[str]]) -> List[str]:
+        """Obtiene el orden de creación de tablas basado en dependencias"""
+        visited = set()
+        temp_mark = set()
+        order = []
+
+        def visit(node: str):
+            if node in temp_mark:
+                raise ValueError(f"Dependencia circular detectada con tabla {node}")
+            if node not in visited:
+                temp_mark.add(node)
+                for dep in dependencies.get(node, set()):
+                    visit(dep)
+                temp_mark.remove(node)
+                visited.add(node)
+                order.append(node)
+
+        # Visitar cada nodo
+        for node in dependencies.keys():
+            if node not in visited:
+                visit(node)
+
+        # Agregar tablas sin dependencias
+        all_tables = set(dependencies.keys()).union(*dependencies.values())
+        standalone_tables = [t for t in all_tables if t not in order]
+        return standalone_tables + order
 
     def generate_tables(self, db):
         """Genera las tablas físicas desde la metadata"""
@@ -45,14 +89,20 @@ class TableGenerator:
                         logger.info(f"La tabla {table_meta.name} ya existe, saltando...")
                         continue
 
-                    # Obtener campos de la tabla
-                    fields = db.query(FieldMetadata).filter(
-                        FieldMetadata.table_id == table_meta.id
-                    ).all()
-
-                    logger.info(f"Campos encontrados para {table_meta.name}:")
+                    # Obtener campos de la tabla y mostrar la consulta SQL
+                    fields_query = db.query(FieldMetadata).filter(FieldMetadata.table_id == table_meta.id)
+                    logger.info(f"Query SQL para campos: {str(fields_query)}")
+                    
+                    fields = fields_query.all()
+                    logger.info(f"Campos encontrados para {table_meta.name} (Total: {len(fields)}):")
                     for field in fields:
-                        logger.info(f"  - {field.name} ({field.field_type})")
+                        logger.info(f"  - ID: {field.id}")
+                        logger.info(f"    Nombre: {field.name}")
+                        logger.info(f"    Tipo: {field.field_type}")
+                        logger.info(f"    Nullable: {field.is_nullable}")
+                        logger.info(f"    Unique: {field.is_unique}")
+                        logger.info(f"    Default: {field.default_value}")
+                        logger.info(f"    Length: {field.length}")
 
                     # Crear columnas
                     columns = []
@@ -63,12 +113,25 @@ class TableGenerator:
                     for field in fields:
                         if field.name != 'id':  # Saltamos el id porque ya lo agregamos
                             try:
-                                column = self._create_column(field)
-                                if column:
-                                    columns.append(column)
-                                    logger.info(f"Columna {field.name} creada exitosamente")
-                                else:
-                                    logger.warning(f"No se pudo crear la columna {field.name}")
+                                field_type = self.type_mapping.get(field.field_type.lower())
+                                if not field_type:
+                                    logger.warning(f"Tipo de campo no soportado: {field.field_type}")
+                                    field_type = String
+                                
+                                column_args = {
+                                    'nullable': field.is_nullable,
+                                    'unique': field.is_unique
+                                }
+                                
+                                if field.length and issubclass(field_type, (String, Text)):
+                                    column_args['length'] = field.length
+                                
+                                if field.default_value is not None:
+                                    column_args['server_default'] = text(field.default_value)
+                                
+                                column = Column(field.name, field_type, **column_args)
+                                columns.append(column)
+                                logger.info(f"Columna {field.name} creada exitosamente con tipo {field_type}")
                             except Exception as col_error:
                                 logger.error(f"Error creando columna {field.name}: {str(col_error)}")
 
@@ -101,9 +164,6 @@ class TableGenerator:
                     logger.error(f"❌ Error creando tabla {table_meta.name}: {str(e)}", exc_info=True)
                     continue
 
-            # Crear relaciones después de que todas las tablas existan
-            self._create_relationships(db)
-            
             return created_tables
 
         except Exception as e:
