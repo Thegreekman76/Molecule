@@ -1,4 +1,4 @@
-# core/middleware/auth.py
+# backend\core\middleware\auth.py
 from fastapi import Request, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from core.security.auth import SECRET_KEY, ALGORITHM

@@ -1,4 +1,4 @@
-# core/security/roles.py
+# backend\core\security\roles.py
 from sqlalchemy import Column, Integer, String, Table, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from core.database.base import Base

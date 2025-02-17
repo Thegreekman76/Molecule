@@ -1,4 +1,4 @@
-# core/generator/table_generator.py
+# backend\core\generator\table_generator.py
 from sqlalchemy import Table, Column, Integer, String, Float, ForeignKey, DateTime, Text, Boolean, MetaData, Numeric, text, inspect
 from core.database.database import engine
 from core.metadata.models import TableMetadata, FieldMetadata, RelationshipMetadata

@@ -1,4 +1,4 @@
-# core/security/schemas.py
+# backend\core\security\schemas.py
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 

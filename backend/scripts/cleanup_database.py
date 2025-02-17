@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+# backend\scripts\cleanup_database.py
+# /usr/bin/env python
 from sqlalchemy import create_engine, text, MetaData
 from sqlalchemy.engine import URL
 import os

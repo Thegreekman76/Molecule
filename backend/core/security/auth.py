@@ -1,4 +1,4 @@
-# core/security/auth.py
+# backend\core\security\auth.py
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from fastapi import Depends, HTTPException, status

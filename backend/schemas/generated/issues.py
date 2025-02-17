@@ -3,17 +3,19 @@ from typing import Optional
 from datetime import datetime
 
 
-class UserRolesBase(BaseModel):
-    user_id: int
-    role_id: int
+class IssuesBase(BaseModel):
+    description: str
+    assigned_to: Optional[int]
+    due_date: Optional[datetime]
+    estimated_hours: Optional[str]
 
-class UserRolesCreate(UserRolesBase):
+class IssuesCreate(IssuesBase):
     pass
 
-class UserRolesUpdate(UserRolesBase):
+class IssuesUpdate(IssuesBase):
     pass
 
-class UserRolesInDB(UserRolesBase):
+class IssuesInDB(IssuesBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None

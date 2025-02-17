@@ -1,4 +1,4 @@
-# api/__init__.py
+# 
 from fastapi import APIRouter
 from .metadata.routes import router as metadata_router
 from .auth.routes import router as auth_router

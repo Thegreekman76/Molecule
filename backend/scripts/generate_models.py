@@ -1,4 +1,4 @@
-# scripts/generate_models.py
+# backend\scripts\generate_models.py
 import os
 import sys
 from pathlib import Path

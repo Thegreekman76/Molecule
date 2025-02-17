@@ -1,4 +1,4 @@
-# api/crud/base.py
+# backend\api\crud\base.py
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

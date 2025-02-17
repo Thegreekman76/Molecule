@@ -1,4 +1,4 @@
-# scripts/generate_tables.py
+# backend\scripts\generate_tables.py
 import os
 import sys
 from pathlib import Path

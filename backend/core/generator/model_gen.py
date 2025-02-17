@@ -1,4 +1,4 @@
-# backend/core/generator/model_gen.py
+# backend\core\generator\model_gen.py
 from typing import Dict, List, Optional
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, Text
 from sqlalchemy.orm import relationship

@@ -1,4 +1,4 @@
-# config/settings.py
+# backend\config\settings.py
 from typing import Any, Dict, List
 from pydantic import BaseModel, field_validator
 import os

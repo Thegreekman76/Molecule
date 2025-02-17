@@ -1,4 +1,4 @@
-# core/database/database.py
+# backend\core\database\database.py
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool

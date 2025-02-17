@@ -1,4 +1,4 @@
-# backend/core/metadata/schema.py
+# backend\core\metadata\schema.py
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, List, Any
 from datetime import datetime

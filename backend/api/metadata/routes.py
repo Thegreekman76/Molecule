@@ -1,4 +1,4 @@
-# api/metadata/routes.py
+# backend\api\metadata\routes.py
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session

@@ -1,4 +1,4 @@
-# scripts/seed_metadata.py
+# backend\scripts\seed_metadata.py
 import sys
 import os
 from pathlib import Path

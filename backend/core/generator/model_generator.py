@@ -1,4 +1,4 @@
-# core/generator/model_generator.py
+# backend\core\generator\model_generator.py
 from typing import Dict, List, Optional, Any
 from sqlalchemy import MetaData, inspect, Table
 from sqlalchemy.engine import Engine

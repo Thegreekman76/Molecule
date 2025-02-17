@@ -1,4 +1,4 @@
-# api/metadata/crud.py
+# backend\api\metadata\crud.py
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from core.metadata.models import TableMetadata, FieldMetadata, RelationshipMetadata
