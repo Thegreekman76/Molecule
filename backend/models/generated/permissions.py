@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.security.roles import Permission
 
-class Permissions(Permission):
-    """Model for table permissions"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de Permission del sistema
+# No necesitas redefinir este modelo, usa Permission directamente
+Permissions = Permission  # Alias para mantener consistencia en nombres

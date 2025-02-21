@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.security.roles import Role
 
-class Roles(Role):
-    """Model for table roles"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de Role del sistema
+# No necesitas redefinir este modelo, usa Role directamente
+Roles = Role  # Alias para mantener consistencia en nombres

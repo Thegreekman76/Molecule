@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.metadata.models import TableMetadata
 
-class TableMetadata(TableMetadata):
-    """Model for table table_metadata"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de TableMetadata del sistema
+# No necesitas redefinir este modelo, usa TableMetadata directamente
+TableMetadata = TableMetadata  # Alias para mantener consistencia en nombres

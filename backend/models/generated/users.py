@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.security.auth import UserModel
 
-class Users(UserModel):
-    """Model for table users"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de UserModel del sistema
+# No necesitas redefinir este modelo, usa UserModel directamente
+Users = UserModel  # Alias para mantener consistencia en nombres

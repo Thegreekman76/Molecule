@@ -159,10 +159,11 @@ class ModelGenerator:
                 class_name, module_path = SYSTEM_MODELS[table_info.name]
                 imports.append(f"from {module_path} import {class_name}")
                 imports.append("")
+                # En lugar de crear una clase que hereda de sí misma, crear un proxy que use la clase original
                 code = [
-                    f"class {model_name}({class_name}):",
-                    f'    """Model for table {table_info.name}"""',
-                    "    __table_args__ = {'extend_existing': True}",
+                    f"# Este modelo utiliza la definición de tabla de {class_name} del sistema",
+                    f"# No necesitas redefinir este modelo, usa {class_name} directamente",
+                    f"{model_name} = {class_name}  # Alias para mantener consistencia en nombres",
                     ""
                 ]
                 return '\n'.join(imports + code)
@@ -420,29 +421,31 @@ class ModelGenerator:
                 if col.name not in ['id', 'created_at', 'updated_at']:
                     # Mapear tipo
                     field_type = self._map_to_pydantic_type(col.type)
-                    is_nullable = col.nullable
                     
-                    # Generar definición del campo
-                    if is_nullable:
+                    # Generar definición del campo según nullable
+                    if col.nullable:
                         field_def = f"{col.name}: Optional[{field_type}] = None"
-                    elif col.default is not None:
-                        # Procesar valor por defecto
-                        default_value = str(col.default)
-                        
-                        # Limpiar sintaxis PostgreSQL
-                        if '::' in default_value:
-                            default_value = default_value.split('::')[0]
-                        
-                        # Valores específicos según tipo
-                        if field_type == 'datetime':
-                            field_def = f"{col.name}: {field_type}"
-                        elif default_value.startswith("'") and default_value.endswith("'"):
-                            clean_value = default_value.strip("'")
-                            field_def = f"{col.name}: {field_type} = Field(default='{clean_value}')"
-                        else:
-                            field_def = f"{col.name}: {field_type} = {default_value}"
                     else:
-                        field_def = f"{col.name}: {field_type}"
+                        # Campo obligatorio sin valor por defecto
+                        if col.default is not None:
+                            # Procesar valor por defecto
+                            default_value = str(col.default)
+                            
+                            # Limpiar sintaxis PostgreSQL
+                            if '::' in default_value:
+                                default_value = default_value.split('::')[0]
+                            
+                            # Valores específicos según tipo
+                            if field_type == 'datetime':
+                                field_def = f"{col.name}: {field_type}"
+                            elif default_value.startswith("'") and default_value.endswith("'"):
+                                clean_value = default_value.strip("'")
+                                field_def = f"{col.name}: {field_type} = Field(default='{clean_value}')"
+                            else:
+                                field_def = f"{col.name}: {field_type} = {default_value}"
+                        else:
+                            # Campo obligatorio para el schema
+                            field_def = f"{col.name}: {field_type}"
                     
                     code.append(f"    {field_def}")
             
@@ -457,14 +460,14 @@ class ModelGenerator:
             
             code.append("")
             
-            # Schema Create
+            # Schema Create - Debe mantener los campos requeridos
             code.extend([
                 f"class {model_name}Create({model_name}Base):",
                 "    pass",
                 ""
             ])
             
-            # Schema Update
+            # Schema Update - Todos los campos son opcionales
             update_code = [f"class {model_name}Update({model_name}Base):"]
             
             # Campos opcionales para Update

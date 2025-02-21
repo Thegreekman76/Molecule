@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.metadata.models import UserRoles
 
-class UserRoles(UserRoles):
-    """Model for table user_roles"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de UserRoles del sistema
+# No necesitas redefinir este modelo, usa UserRoles directamente
+UserRoles = UserRoles  # Alias para mantener consistencia en nombres

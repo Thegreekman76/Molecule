@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.metadata.models import FieldMetadata
 
-class FieldMetadata(FieldMetadata):
-    """Model for table field_metadata"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de FieldMetadata del sistema
+# No necesitas redefinir este modelo, usa FieldMetadata directamente
+FieldMetadata = FieldMetadata  # Alias para mantener consistencia en nombres

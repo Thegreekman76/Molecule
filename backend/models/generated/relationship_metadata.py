@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.metadata.models import RelationshipMetadata
 
-class RelationshipMetadata(RelationshipMetadata):
-    """Model for table relationship_metadata"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de RelationshipMetadata del sistema
+# No necesitas redefinir este modelo, usa RelationshipMetadata directamente
+RelationshipMetadata = RelationshipMetadata  # Alias para mantener consistencia en nombres

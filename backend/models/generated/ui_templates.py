@@ -7,6 +7,6 @@ from core.database.base import Base
 
 from core.metadata.models import UITemplate
 
-class UiTemplates(UITemplate):
-    """Model for table ui_templates"""
-    __table_args__ = {'extend_existing': True}
+# Este modelo utiliza la definición de tabla de UITemplate del sistema
+# No necesitas redefinir este modelo, usa UITemplate directamente
+UiTemplates = UITemplate  # Alias para mantener consistencia en nombres
