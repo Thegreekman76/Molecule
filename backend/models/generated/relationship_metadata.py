@@ -1,19 +1,12 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, JSON, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, Numeric, func, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, Mapped
+from typing import Optional, List
+from datetime import datetime
 from core.database.base import Base
 
+from core.metadata.models import RelationshipMetadata
 
-class RelationshipMetadata(Base):
+class RelationshipMetadata(RelationshipMetadata):
     """Model for table relationship_metadata"""
-    __tablename__ = 'relationship_metadata'
-
-    id = Column(Integer, nullable=False, default=nextval('"public".relationship_metadata_id_seq'::regclass))
-    source_table_id = Column(ForeignKey('table_metadata.id'))
-    target_table_id = Column(ForeignKey('table_metadata.id'))
-    relationship_type = Column(String)
-    source_field = Column(String)
-    target_field = Column(String)
-    created_at = Column(DateTime, default=now())
-    updated_at = Column(DateTime)
-    table_metadata = relationship('TableMetadata')
-    table_metadata = relationship('TableMetadata')
+    __table_args__ = {'extend_existing': True}

@@ -1,18 +1,12 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, JSON, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, Numeric, func, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, Mapped
+from typing import Optional, List
+from datetime import datetime
 from core.database.base import Base
 
+from core.metadata.models import TableMetadata
 
-class TableMetadata(Base):
+class TableMetadata(TableMetadata):
     """Model for table table_metadata"""
-    __tablename__ = 'table_metadata'
-
-    id = Column(Integer, nullable=False, default=nextval('"public".table_metadata_id_seq'::regclass))
-    name = Column(String)
-    display_name = Column(String)
-    description = Column(String)
-    is_visible = Column(Boolean)
-    created_at = Column(DateTime, default=now())
-    updated_at = Column(DateTime)
-    ui_settings = Column(String)
-    db_schema = Column(String)
+    __table_args__ = {'extend_existing': True}

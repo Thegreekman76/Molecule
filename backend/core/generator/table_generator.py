@@ -1,6 +1,7 @@
 # backend\core\generator\table_generator.py
-from sqlalchemy import Table, Column, Integer, String, Float, ForeignKey, DateTime, Text, Boolean, MetaData, Numeric, text, inspect
+from sqlalchemy import JSON, Table, Column, Integer, String, Float, ForeignKey, DateTime, Text, Boolean, MetaData, Numeric, text, inspect
 from core.database.database import engine
+from sqlalchemy.dialects.postgresql import JSONB
 from core.metadata.models import TableMetadata, FieldMetadata, RelationshipMetadata
 from sqlalchemy.schema import CreateTable
 import logging
@@ -15,15 +16,17 @@ class TableGenerator:
         self.metadata = MetaData()
         self.inspector = inspect(engine)
         self.type_mapping = {
-            'integer': Integer,
             'string': String,
-            'varchar': String,
-            'text': Text,
+            'integer': Integer,
+            'boolean': Boolean,
+            'datetime': DateTime,
             'float': Float,
             'decimal': Numeric,
-            'datetime': DateTime,
+            'text': Text,
+            'varchar': String,
             'timestamp': DateTime,
-            'boolean': Boolean,
+            'json': JSON,
+            'jsonb': JSONB,
         }
 
     def _build_dependency_graph(self, db) -> Dict[str, Set[str]]:
@@ -74,135 +77,129 @@ class TableGenerator:
             tables_metadata = db.query(TableMetadata).all()
             logger.info(f"Encontradas {len(tables_metadata)} tablas en metadata")
 
-            # Obtener lista de tablas existentes
-            existing_tables = self.inspector.get_table_names()
-            logger.info(f"Tablas existentes en la base de datos: {existing_tables}")
-            
-            created_tables = []
-
             for table_meta in tables_metadata:
                 try:
-                    logger.info(f"\nProcesando tabla: {table_meta.name}")
+                    logger.info(f"\n=== Procesando tabla: {table_meta.name} ===")
                     
-                    # Verificar si la tabla ya existe
-                    if table_meta.name in existing_tables:
-                        logger.info(f"La tabla {table_meta.name} ya existe, saltando...")
-                        continue
-
                     # Obtener campos de la tabla y mostrar la consulta SQL
                     fields_query = db.query(FieldMetadata).filter(FieldMetadata.table_id == table_meta.id)
-                    logger.info(f"Query SQL para campos: {str(fields_query)}")
-                    
+                    logger.info("Campos encontrados:")
                     fields = fields_query.all()
-                    logger.info(f"Campos encontrados para {table_meta.name} (Total: {len(fields)}):")
-                    for field in fields:
-                        logger.info(f"  - ID: {field.id}")
-                        logger.info(f"    Nombre: {field.name}")
-                        logger.info(f"    Tipo: {field.field_type}")
-                        logger.info(f"    Nullable: {field.is_nullable}")
-                        logger.info(f"    Unique: {field.is_unique}")
-                        logger.info(f"    Default: {field.default_value}")
-                        logger.info(f"    Length: {field.length}")
 
                     # Crear columnas
                     columns = []
                     # Asegurar que existe la columna ID
                     columns.append(Column('id', Integer, primary_key=True))
-                    logger.info("Agregada columna 'id' automáticamente")
+                    logger.info("✅ Agregada columna 'id' automáticamente")
+                    
+                    # Agregar timestamps (importante)
+                    columns.append(Column('created_at', DateTime, server_default=text('CURRENT_TIMESTAMP')))
+                    columns.append(Column('updated_at', DateTime, server_default=text('CURRENT_TIMESTAMP'), onupdate=text('CURRENT_TIMESTAMP')))
+                    logger.info("✅ Agregadas columnas de timestamp")
                     
                     for field in fields:
-                        if field.name != 'id':  # Saltamos el id porque ya lo agregamos
-                            try:
-                                field_type = self.type_mapping.get(field.field_type.lower())
-                                if not field_type:
-                                    logger.warning(f"Tipo de campo no soportado: {field.field_type}")
-                                    field_type = String
-                                
-                                column_args = {
-                                    'nullable': field.is_nullable,
-                                    'unique': field.is_unique
-                                }
-                                
-                                if field.length and issubclass(field_type, (String, Text)):
-                                    column_args['length'] = field.length
-                                
-                                if field.default_value is not None:
-                                    column_args['server_default'] = text(field.default_value)
-                                
-                                column = Column(field.name, field_type, **column_args)
-                                columns.append(column)
-                                logger.info(f"Columna {field.name} creada exitosamente con tipo {field_type}")
-                            except Exception as col_error:
-                                logger.error(f"Error creando columna {field.name}: {str(col_error)}")
+                        try:
+                            # Debug de cada campo
+                            logger.info(f"\nProcesando campo: {field.name}")
+                            logger.info(f"Tipo: {field.field_type}")
+                            logger.info(f"Length: {field.length}")
+                            logger.info(f"Nullable: {field.is_nullable}")
+                            logger.info(f"Unique: {field.is_unique}")
+                            logger.info(f"Default: {field.default_value}")
 
-                    # Agregar timestamps
-                    columns.extend([
-                        Column('created_at', DateTime, server_default=text('CURRENT_TIMESTAMP')),
-                        Column('updated_at', DateTime, onupdate=text('CURRENT_TIMESTAMP'))
-                    ])
-                    logger.info("Agregadas columnas de timestamp")
+                            # Obtener tipo de columna
+                            field_type = self.type_mapping.get(field.field_type.lower())
+                            if not field_type:
+                                logger.warning(f"⚠️ Tipo no soportado: {field.field_type}, usando String")
+                                field_type = String
+
+                            # Crear argumentos de la columna
+                            column_args = {
+                                'nullable': field.is_nullable,
+                                'unique': field.is_unique
+                            }
+
+                            # Manejar length para strings
+                            if field.length and field_type == String:
+                                field_type = String(field.length)
+
+                            # Manejar valor por defecto
+                            if field.default_value:
+                                column_args['server_default'] = text(field.default_value)
+
+                            # Crear columna
+                            column = Column(field.name, field_type, **column_args)
+                            columns.append(column)
+                            logger.info(f"✅ Columna {field.name} creada exitosamente")
+
+                        except Exception as e:
+                            logger.error(f"❌ Error creando columna {field.name}: {str(e)}")
+                            raise
 
                     # Crear tabla
-                    logger.info(f"Creando tabla {table_meta.name} con {len(columns)} columnas")
+                    logger.info(f"\nCreando tabla {table_meta.name} con {len(columns)} columnas")
                     table = Table(
                         table_meta.name,
                         self.metadata,
                         *columns,
                         schema=table_meta.db_schema
                     )
-                    
+
                     # Generar SQL
                     create_sql = str(CreateTable(table).compile(self.engine))
                     logger.info(f"SQL generado:\n{create_sql}")
-                    
+
                     # Crear tabla
                     table.create(self.engine)
-                    created_tables.append(table_meta.name)
                     logger.info(f"✅ Tabla {table_meta.name} creada exitosamente")
 
                 except Exception as e:
-                    logger.error(f"❌ Error creando tabla {table_meta.name}: {str(e)}", exc_info=True)
-                    continue
-
-            return created_tables
+                    logger.error(f"❌ Error procesando tabla {table_meta.name}: {str(e)}")
+                    raise
 
         except Exception as e:
-            logger.error(f"Error en la generación de tablas: {str(e)}", exc_info=True)
+            logger.error(f"Error en generate_tables: {str(e)}")
             raise
 
     def _create_column(self, field):
-        """Crea una columna SQLAlchemy desde un campo de metadata"""
         try:
-            # Obtener el tipo de columna
-            column_type = self.type_mapping.get(field.field_type.lower())
+            logger.info(f"Procesando campo: {field.name} - Tipo: {field.field_type}")
+            
+            # Mapeo de tipo
+            field_type = field.field_type.lower()
+            column_type = self.type_mapping.get(field_type)
             if not column_type:
-                logger.warning(f"Tipo de campo no soportado: {field.field_type}")
+                logger.warning(f"Tipo {field_type} no encontrado, usando String")
                 column_type = String
 
-            # Configurar argumentos de la columna
-            column_args = {
-                'nullable': field.is_nullable,
-                'unique': field.is_unique
-            }
+            # Argumentos base de la columna
+            column_args = {}
+            
+            # Si es String o Text y tiene length
+            if field.length and (column_type == String):
+                column_type = String(field.length)
+            
+            # Configurar nullable y unique
+            if not field.is_nullable:
+                column_args['nullable'] = False
+            if field.is_unique:
+                column_args['unique'] = True
+                
+            # Valor por defecto
+            if field.default_value:
+                if "CURRENT_TIMESTAMP" in str(field.default_value).upper():
+                    column_args['server_default'] = text('CURRENT_TIMESTAMP')
+                else:
+                    column_args['server_default'] = text(str(field.default_value))
 
-            # Manejar longitud para tipos que la soportan
-            if field.length and issubclass(column_type, (String, Text)):
-                column_args['length'] = field.length
-
-            # Manejar valores por defecto
-            if field.default_value is not None:
-                column_args['server_default'] = text(field.default_value)
-
-            # Crear la columna
-            return Column(
-                field.name,
-                column_type,
-                **column_args
-            )
+            # Crear columna
+            column = Column(field.name, column_type, **column_args)
+            logger.info(f"✅ Columna {field.name} creada con: {column_args}")
+            return column
 
         except Exception as e:
-            logger.error(f"Error creando columna {field.name}: {str(e)}")
-            return None
+            logger.error(f"❌ Error creando columna {field.name}: {str(e)}")
+            raise
 
     def _create_relationships(self, db):
         """Crea las relaciones entre tablas"""

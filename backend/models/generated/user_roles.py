@@ -1,16 +1,12 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, JSON, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, Numeric, func, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, Mapped
+from typing import Optional, List
+from datetime import datetime
 from core.database.base import Base
 
+from core.metadata.models import UserRoles
 
-class UserRoles(Base):
+class UserRoles(UserRoles):
     """Model for table user_roles"""
-    __tablename__ = 'user_roles'
-
-    id = Column(Integer, nullable=False, default=nextval('"public".user_roles_id_seq'::regclass))
-    user_id = Column(ForeignKey('users.id'), nullable=False, unique=True)
-    role_id = Column(ForeignKey('roles.id'), nullable=False, unique=True)
-    created_at = Column(DateTime, default=CURRENT_TIMESTAMP)
-    updated_at = Column(DateTime, default=CURRENT_TIMESTAMP)
-    users = relationship('Users')
-    roles = relationship('Roles')
+    __table_args__ = {'extend_existing': True}

@@ -53,23 +53,40 @@ class ModelGenerator:
                     self._add_one_to_one_relationship(source_model, target_model, rel)
     
     def _create_column(self, field_metadata: FieldMetadata) -> Column:
-        """Crea una columna SQLAlchemy desde los metadatos de campo"""
-        kwargs = {
-            'nullable': field_metadata.is_nullable,
-            'unique': field_metadata.is_unique,
-        }
-        
-        if field_metadata.default_value is not None:
-            kwargs['default'] = field_metadata.default_value
-        
-        column_type = self.TYPE_MAPPING.get(field_metadata.field_type)
-        if column_type is None:
-            raise ValueError(f"Tipo de campo no soportado: {field_metadata.field_type}")
-        
-        if field_metadata.length and field_metadata.field_type == 'string':
-            return Column(column_type(field_metadata.length), **kwargs)
-        
-        return Column(column_type, **kwargs)
+        try:
+            # Mapear el tipo
+            column_type = self.TYPE_MAPPING.get(field_metadata.field_type.lower())
+            if not column_type:
+                raise ValueError(f"Tipo de campo no soportado: {field_metadata.field_type}")
+
+            # Preparar argumentos de la columna
+            kwargs = {
+                'nullable': field_metadata.is_nullable,
+                'unique': field_metadata.is_unique,
+            }
+
+            # Manejar valor por defecto
+            if field_metadata.default_value:
+                # Limpiar el valor por defecto de sintaxis PostgreSQL
+                default_value = field_metadata.default_value.replace("::character varying", "")
+                # Remover comillas simples extra
+                default_value = default_value.strip("'")
+                
+                # Si es un string, mantener las comillas
+                if field_metadata.field_type.lower() in ['string', 'text']:
+                    kwargs['default'] = default_value
+                else:
+                    kwargs['default'] = default_value
+
+            # Manejar longitud para strings
+            if field_metadata.length and field_metadata.field_type.lower() == 'string':
+                return Column(field_metadata.name, String(field_metadata.length), **kwargs)
+            
+            return Column(field_metadata.name, column_type, **kwargs)
+
+        except Exception as e:
+            logger.error(f"Error creando columna {field_metadata.name}: {str(e)}")
+            raise
     
     def _generate_class_name(self, table_name: str) -> str:
         """Genera un nombre de clase desde el nombre de la tabla"""

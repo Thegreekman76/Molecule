@@ -2,18 +2,26 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-
 class UiTemplatesBase(BaseModel):
-    name: Optional[str]
-    description: Optional[str]
-    template_type: Optional[str]
-    configuration: Optional[str]
+    name: Optional[str] = None
+    description: Optional[str] = None
+    template_type: Optional[str] = None
+    configuration: Optional[dict] = None
+
+    model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+    }
 
 class UiTemplatesCreate(UiTemplatesBase):
     pass
 
 class UiTemplatesUpdate(UiTemplatesBase):
-    pass
+    name: Optional[str] = None
+    description: Optional[str] = None
+    template_type: Optional[str] = None
+    configuration: Optional[dict] = None
 
 class UiTemplatesInDB(UiTemplatesBase):
     id: int

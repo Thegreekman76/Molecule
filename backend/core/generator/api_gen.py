@@ -1,4 +1,5 @@
 # backend\core\generator\api_gen.py
+from datetime import datetime
 from typing import Type, Dict, Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -14,82 +15,112 @@ class APIGenerator:
     
     def generate_router(self, table_metadata: TableMetadata, model: Type) -> APIRouter:
         """Genera un router FastAPI para un modelo específico"""
-        router = APIRouter()
-        
-        # Crear schemas Pydantic
-        create_schema = self._generate_create_schema(table_metadata, model)
-        update_schema = self._generate_update_schema(table_metadata, model)
-        response_schema = self._generate_response_schema(table_metadata, model)
-        
-        # Endpoints CRUD
-        @router.post("/", response_model=response_schema)
-        async def create_item(item: create_schema, db: Session = Depends(get_db)):
-            db_item = model(**item.dict())
-            db.add(db_item)
-            try:
-                db.commit()
-                db.refresh(db_item)
-                return db_item
-            except Exception as e:
-                db.rollback()
-                raise HTTPException(status_code=400, detail=str(e))
-        
-        @router.get("/", response_model=List[response_schema])
-        async def read_items(
-            skip: int = 0, 
-            limit: int = 100, 
-            db: Session = Depends(get_db)
-        ):
-            items = db.query(model).offset(skip).limit(limit).all()
-            return items
-        
-        @router.get("/{item_id}", response_model=response_schema)
-        async def read_item(item_id: int, db: Session = Depends(get_db)):
-            item = db.query(model).filter(model.id == item_id).first()
-            if item is None:
-                raise HTTPException(status_code=404, detail="Item not found")
-            return item
-        
-        @router.put("/{item_id}", response_model=response_schema)
-        async def update_item(
-            item_id: int, 
-            item: update_schema, 
-            db: Session = Depends(get_db)
-        ):
-            db_item = db.query(model).filter(model.id == item_id).first()
-            if db_item is None:
-                raise HTTPException(status_code=404, detail="Item not found")
+        try:
+            router = APIRouter()
             
-            for key, value in item.dict(exclude_unset=True).items():
-                setattr(db_item, key, value)
+            # Crear schemas Pydantic
+            create_schema = self._generate_create_schema(table_metadata, model)
+            update_schema = self._generate_update_schema(table_metadata, model)
             
-            try:
-                db.commit()
-                db.refresh(db_item)
-                return db_item
-            except Exception as e:
-                db.rollback()
-                raise HTTPException(status_code=400, detail=str(e))
-        
-        @router.delete("/{item_id}")
-        async def delete_item(item_id: int, db: Session = Depends(get_db)):
-            db_item = db.query(model).filter(model.id == item_id).first()
-            if db_item is None:
-                raise HTTPException(status_code=404, detail="Item not found")
+            # Función auxiliar para serializar respuestas
+            def serialize_model(db_obj):
+                """Serializa los objetos del modelo, convirtiendo datetime a ISO format"""
+                result = {}
+                for column in model.__table__.columns:
+                    value = getattr(db_obj, column.name)
+                    if isinstance(value, datetime):
+                        result[column.name] = value.isoformat()
+                    else:
+                        result[column.name] = value
+                return result
             
-            try:
-                db.delete(db_item)
-                db.commit()
-                return {"ok": True}
-            except Exception as e:
-                db.rollback()
-                raise HTTPException(status_code=400, detail=str(e))
-        
-        # Agregar endpoints personalizados según la metadata
-        self._add_custom_endpoints(router, table_metadata, model)
-        
-        self.routers[table_metadata.name] = router
-        return router
+            # Endpoints CRUD
+            @router.post("/")
+            async def create_item(item: create_schema, db: Session = Depends(get_db)):
+                """Crear nuevo item"""
+                try:
+                    # Convertir Pydantic model a dict
+                    item_data = item.dict()
+                    
+                    # Crear y guardar el objeto
+                    db_item = model(**item_data)
+                    db.add(db_item)
+                    db.commit()
+                    db.refresh(db_item)
+                    
+                    # Serializar la respuesta
+                    return serialize_model(db_item)
+                except Exception as e:
+                    db.rollback()
+                    raise HTTPException(status_code=400, detail=str(e))
+            
+            @router.get("/")
+            async def read_items(
+                skip: int = 0, 
+                limit: int = 100, 
+                db: Session = Depends(get_db)
+            ):
+                """Obtener lista de items"""
+                items = db.query(model).offset(skip).limit(limit).all()
+                # Serializar cada item en la lista
+                return [serialize_model(item) for item in items]
+            
+            @router.get("/{item_id}")
+            async def read_item(item_id: int, db: Session = Depends(get_db)):
+                """Obtener un item específico"""
+                item = db.query(model).filter(model.id == item_id).first()
+                if item is None:
+                    raise HTTPException(status_code=404, detail="Item not found")
+                # Serializar la respuesta
+                return serialize_model(item)
+            
+            @router.put("/{item_id}")
+            async def update_item(
+                item_id: int, 
+                item: update_schema, 
+                db: Session = Depends(get_db)
+            ):
+                """Actualizar un item"""
+                db_item = db.query(model).filter(model.id == item_id).first()
+                if db_item is None:
+                    raise HTTPException(status_code=404, detail="Item not found")
+                
+                # Actualizar solo los campos proporcionados
+                for key, value in item.dict(exclude_unset=True).items():
+                    if hasattr(db_item, key):
+                        setattr(db_item, key, value)
+                
+                try:
+                    db.commit()
+                    db.refresh(db_item)
+                    # Serializar la respuesta
+                    return serialize_model(db_item)
+                except Exception as e:
+                    db.rollback()
+                    raise HTTPException(status_code=400, detail=str(e))
+            
+            @router.delete("/{item_id}")
+            async def delete_item(item_id: int, db: Session = Depends(get_db)):
+                """Eliminar un item"""
+                db_item = db.query(model).filter(model.id == item_id).first()
+                if db_item is None:
+                    raise HTTPException(status_code=404, detail="Item not found")
+                
+                try:
+                    # Serializar antes de eliminar
+                    response = serialize_model(db_item)
+                    db.delete(db_item)
+                    db.commit()
+                    return response
+                except Exception as e:
+                    db.rollback()
+                    raise HTTPException(status_code=400, detail=str(e))
+            
+            return router
+
+        except Exception as e:
+            logger.error(f"Error generating router: {str(e)}")
+            raise
     
     def _generate_create_schema(
         self, 
@@ -97,16 +128,26 @@ class APIGenerator:
         model: Type
     ) -> Type:
         """Genera el schema Pydantic para creación"""
-        fields = {}
-        for field in table_metadata.fields:
-            if field.name not in ['id', 'created_at', 'updated_at']:
-                field_type = self._get_pydantic_type(field)
-                fields[field.name] = (field_type, ... if not field.is_nullable else None)
+        try:
+            fields = {}
+            if not hasattr(table_metadata, 'fields'):
+                print(f"Warning: table_metadata no tiene campos para {table_metadata.name}")
+                return create_model(f'{model.__name__}Create', __annotations__={})
+                
+            for field in table_metadata.fields:
+                print(f"Procesando campo: {field.name} - tipo: {field.field_type}")
+                if field.name not in ['id', 'created_at', 'updated_at']:
+                    field_type = self._get_pydantic_type(field)
+                    fields[field.name] = (field_type, ... if not field.is_nullable else None)
+            
+            return create_model(
+                f'{model.__name__}Create',
+                **fields
+            )
+        except Exception as e:
+            print(f"Error en generate_create_schema: {str(e)}")
+            raise
         
-        return create_model(
-            f'{model.__name__}Create',
-            **fields
-        )
     
     def _generate_update_schema(
         self, 
@@ -134,24 +175,40 @@ class APIGenerator:
         fields = {}
         for field in table_metadata.fields:
             field_type = self._get_pydantic_type(field)
-            fields[field.name] = (field_type, ... if not field.is_nullable else None)
+            if field_type == datetime:
+                fields[field.name] = (field_type, ... if not field.is_nullable else None)
+            else:
+                fields[field.name] = (field_type, ... if not field.is_nullable else None)
+        
+        # Configurar serialización de datetime
+        model_config = {
+            "json_encoders": {
+                datetime: lambda v: v.isoformat() if v else None
+            }
+        }
         
         return create_model(
             f'{model.__name__}Response',
+            __config__=type('Config', (), {"json_encoders": {datetime: lambda v: v.isoformat() if v else None}}),
             **fields
         )
     
     def _get_pydantic_type(self, field: FieldMetadata) -> Type:
         """Obtiene el tipo Pydantic correspondiente al tipo de campo"""
-        type_mapping = {
-            'string': str,
-            'integer': int,
-            'boolean': bool,
-            'datetime': str,  # ISO format string
-            'float': float,
-            'text': str,
-        }
-        return type_mapping.get(field.field_type, str)
+        try:
+            field_type = field.field_type.lower() if field.field_type else 'string'
+            type_mapping = {
+                'string': str,
+                'integer': int,
+                'boolean': bool,
+                'datetime': str,  # ISO format string
+                'float': float,
+                'text': str,
+            }
+            return type_mapping.get(field_type, str)
+        except Exception as e:
+            print(f"Error getting type for field {field.name}: {str(e)}")
+            return str  # tipo por defecto
     
     def _add_custom_endpoints(
         self, 

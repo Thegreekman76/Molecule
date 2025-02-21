@@ -13,7 +13,9 @@ class Base(DeclarativeBase):
     def __tablename__(cls) -> str:
         """Generate __tablename__ automatically from class name"""
         return cls.__name__.lower()
-
+    
+    __table_args__ = {'extend_existing': True}
+    
     # Columnas comunes para todos los modelos
     id = mapped_column(Integer, primary_key=True, index=True)
     created_at = mapped_column(

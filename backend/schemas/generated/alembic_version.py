@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-
 class AlembicVersionBase(BaseModel):
     version_num: str
 
@@ -10,7 +9,7 @@ class AlembicVersionCreate(AlembicVersionBase):
     pass
 
 class AlembicVersionUpdate(AlembicVersionBase):
-    pass
+    version_num: Optional[str] = None
 
 class AlembicVersionInDB(AlembicVersionBase):
     id: int

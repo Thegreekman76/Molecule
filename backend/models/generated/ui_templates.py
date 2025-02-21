@@ -1,16 +1,12 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, JSON, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, Numeric, func, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, Mapped
+from typing import Optional, List
+from datetime import datetime
 from core.database.base import Base
 
+from core.metadata.models import UITemplate
 
-class UiTemplates(Base):
+class UiTemplates(UITemplate):
     """Model for table ui_templates"""
-    __tablename__ = 'ui_templates'
-
-    id = Column(Integer, nullable=False, default=nextval('"public".ui_templates_id_seq'::regclass))
-    name = Column(String, unique=True)
-    description = Column(String)
-    template_type = Column(String)
-    configuration = Column(String)
-    created_at = Column(DateTime, default=now())
-    updated_at = Column(DateTime)
+    __table_args__ = {'extend_existing': True}

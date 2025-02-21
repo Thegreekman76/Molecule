@@ -2,14 +2,24 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-
 class TagsBase(BaseModel):
+    name: str
+    color: str = Field(default='#6B7280')
+    description: Optional[str] = None
+
+    model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+    }
 
 class TagsCreate(TagsBase):
     pass
 
 class TagsUpdate(TagsBase):
-    pass
+    name: Optional[str] = None
+    color: Optional[str] = None
+    description: Optional[str] = None
 
 class TagsInDB(TagsBase):
     id: int

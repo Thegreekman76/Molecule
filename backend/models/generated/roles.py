@@ -1,15 +1,12 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, JSON, Integer, String, ForeignKey, Boolean, DateTime, Text, Float, Numeric, func, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, Mapped
+from typing import Optional, List
+from datetime import datetime
 from core.database.base import Base
 
+from core.security.roles import Role
 
-class Roles(Base):
+class Roles(Role):
     """Model for table roles"""
-    __tablename__ = 'roles'
-
-    id = Column(Integer, nullable=False, default=nextval('"public".roles_id_seq'::regclass))
-    name = Column(String)
-    description = Column(String)
-    is_active = Column(Boolean)
-    created_at = Column(DateTime, nullable=False, default=CURRENT_TIMESTAMP)
-    updated_at = Column(DateTime, nullable=False, default=CURRENT_TIMESTAMP)
+    __table_args__ = {'extend_existing': True}

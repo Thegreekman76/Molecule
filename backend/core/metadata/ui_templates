@@ -1,0 +1,191 @@
+# backend/core/metadata/ui_templates.py
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
+
+# Modelos para validación de UI
+class FieldUIConfig(BaseModel):
+    """Configuración UI para un campo"""
+    widget: str
+    label: Optional[str] = None
+    placeholder: Optional[str] = None
+    help_text: Optional[str] = None
+    readonly: bool = False
+    required: bool = False
+    visible: bool = True
+    choices: Optional[List[Dict[str, Any]]] = None
+    default_value: Optional[Any] = None
+
+# Configuración básica de UI para tipos de campos
+FIELD_TYPES = {
+    'string': {
+        'widget': 'text',
+        'validation': {
+            'type': 'string'
+        }
+    },
+    'integer': {
+        'widget': 'number',
+        'validation': {
+            'type': 'integer'
+        }
+    },
+    'boolean': {
+        'widget': 'checkbox',
+        'validation': {
+            'type': 'boolean'
+        }
+    },
+    'datetime': {
+        'widget': 'datetime',
+        'validation': {
+            'type': 'datetime'
+        }
+    },
+    'text': {
+        'widget': 'textarea',
+        'validation': {
+            'type': 'string'
+        }
+    },
+    'enum': {
+        'widget': 'select',
+        'validation': {
+            'type': 'string'
+        }
+    },
+    'json': {
+        'widget': 'json-editor',
+        'validation': {
+            'type': 'object'
+        }
+    },
+    'array': {
+        'widget': 'array',
+        'validation': {
+            'type': 'array'
+        }
+    },
+    'file': {
+        'widget': 'file',
+        'validation': {
+            'type': 'string',
+            'format': 'binary'
+        }
+    },
+    'image': {
+        'widget': 'image',
+        'validation': {
+            'type': 'string',
+            'format': 'binary'
+        }
+    }
+}
+
+# Templates por defecto para diferentes tipos de vistas
+UI_TEMPLATES = {
+    'default': {
+        'form': {
+            'layout': 'vertical',
+            'labelCol': {'span': 8},
+            'wrapperCol': {'span': 16},
+            'submitText': 'Save'
+        },
+        'list': {
+            'pageSize': 10,
+            'searchable': True,
+            'filterable': True,
+            'sortable': True
+        },
+        'detail': {
+            'layout': 'horizontal',
+            'labelCol': {'span': 6},
+            'wrapperCol': {'span': 18}
+        }
+    },
+    'compact': {
+        'form': {
+            'layout': 'inline',
+            'submitText': 'Save'
+        },
+        'list': {
+            'pageSize': 5,
+            'searchable': False,
+            'filterable': False,
+            'sortable': True
+        },
+        'detail': {
+            'layout': 'vertical'
+        }
+    },
+    'table': {
+        'list': {
+            'pageSize': 20,
+            'searchable': True,
+            'filterable': True,
+            'sortable': True,
+            'selectable': True,
+            'exportable': True
+        }
+    }
+}
+
+# Templates personalizados para tipos de contenido específicos
+CONTENT_TEMPLATES = {
+    'blog': {
+        'form': {
+            'layout': 'vertical',
+            'sections': [
+                {
+                    'title': 'Basic Information',
+                    'fields': ['title', 'content', 'status']
+                },
+                {
+                    'title': 'SEO',
+                    'fields': ['meta_title', 'meta_description', 'keywords']
+                }
+            ]
+        },
+        'list': {
+            'columns': [
+                {'key': 'title', 'sortable': True},
+                {'key': 'status', 'filterable': True},
+                {'key': 'created_at', 'sortable': True}
+            ]
+        }
+    },
+    'user': {
+        'form': {
+            'layout': 'horizontal',
+            'sections': [
+                {
+                    'title': 'User Information',
+                    'fields': ['username', 'email', 'full_name']
+                },
+                {
+                    'title': 'Access Control',
+                    'fields': ['roles', 'permissions', 'is_active']
+                }
+            ]
+        }
+    }
+}
+
+# Helpers para obtener configuraciones
+def get_field_config(field_type: str) -> Dict[str, Any]:
+    """Obtener configuración para un tipo de campo específico"""
+    return FIELD_TYPES.get(field_type, FIELD_TYPES['string'])
+
+def get_ui_template(template_name: str = 'default', view_type: str = 'form') -> Dict[str, Any]:
+    """Obtener un template UI específico"""
+    template = UI_TEMPLATES.get(template_name, UI_TEMPLATES['default'])
+    return template.get(view_type, {})
+
+def get_content_template(content_type: str, view_type: str = 'form') -> Optional[Dict[str, Any]]:
+    """Obtener un template específico para un tipo de contenido"""
+    if content_type in CONTENT_TEMPLATES:
+        return CONTENT_TEMPLATES[content_type].get(view_type)
+    return None
+
+def merge_ui_configs(base_config: Dict[str, Any], custom_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Combinar configuraciones UI, permitiendo personalización"""
+    return {**base_config, **custom_config}
